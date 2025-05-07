@@ -1,0 +1,55 @@
+import time
+from machine import Pin, UART
+from umodbus.serial import Serial as ModbusRTUMaster
+
+# Configuration
+MODBUS_SLAVE_ADDR = 0x37        # Your device address
+MODBUS_BAUDRATE = 19200
+MODBUS_PINS = (Pin(0), Pin(1)) # TX, RX pins
+MODBUS_UART_ID = 0
+MODBUS_CTRL_PIN = None          # Set to Pin(2) if you're using DE/RE control
+
+# Register Addresses (replace with real ones from your meter)
+DATA_1 = 0x0  # Example register address for energy
+DATA_2 = 0x1E  # Example register address for voltage
+DATA_3 = 0x20  # Example register address for current
+DATA_4 = 0x1C    # Example register address for power
+
+# Initialize Modbus Master
+modbus = ModbusRTUMaster(
+    uart_id=MODBUS_UART_ID,
+    baudrate=MODBUS_BAUDRATE,
+    data_bits=8,
+    stop_bits=2,
+    parity=None,
+    pins=MODBUS_PINS,
+    ctrl_pin=MODBUS_CTRL_PIN
+)
+
+def read_register(name, address, scale=1.0):
+    try:
+        values = modbus.read_holding_registers(
+            slave_addr=MODBUS_SLAVE_ADDR,
+            starting_addr=address,
+            register_qty=2,
+            signed=False
+        )
+        value = values[0] / scale
+        print(f"{name}: {value:.2f}")
+        return value
+    except Exception as e:
+        print(f"Error reading {name}: {e}")
+        return None
+
+def main():
+    while True:
+        print("Reading Modbus data...")
+        read_register("FW Version", DATA_1, 1)
+        read_register("T1 Part.(kWh)", DATA_2, 100)
+        read_register("T2 Total (kWh)", DATA_3, 100)
+        read_register("T1 Total (kWh)", DATA_4, 100)
+        print("-" * 30)
+        time.sleep(5)
+
+main()
+
